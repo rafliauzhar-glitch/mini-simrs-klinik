@@ -30,9 +30,18 @@ GAYA = """
         background: #0f766e;
         color: white;
         padding: 16px 40px;
-        font-size: 20px;
-        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 24px;
     }
+    .navbar span { font-size: 20px; font-weight: 600; margin-right: auto; }
+    .navbar a {
+        color: white;
+        text-decoration: none;
+        font-size: 15px;
+        opacity: 0.8;
+    }
+    .navbar a:hover { opacity: 1; }
     .container { max-width: 1000px; margin: 32px auto; padding: 0 20px; }
     .judul {
         display: flex;
@@ -61,7 +70,7 @@ GAYA = """
         background: white;
         border-radius: 12px;
         box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-        overflow: hidden;
+        overflow-x: auto;
     }
     .form-tambah, .form-cari, .form-edit {
         background: white;
@@ -119,6 +128,7 @@ GAYA = """
         letter-spacing: 0.5px;
         padding: 14px 16px;
         border-bottom: 2px solid #e2e8f0;
+        white-space: nowrap;
     }
     td { padding: 14px 16px; border-bottom: 1px solid #e2e8f0; }
     tr:last-child td { border-bottom: none; }
@@ -135,7 +145,24 @@ GAYA = """
         font-size: 13px;
         font-weight: 600;
     }
+    .spesialis {
+        background: #ede9fe;
+        color: #6d28d9;
+        padding: 3px 10px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 600;
+    }
 </style>
+"""
+
+
+NAVBAR = """
+<div class="navbar">
+    <span>Mini SIMRS Klinik</span>
+    <a href="/">Pasien</a>
+    <a href="/kunjungan">Kunjungan</a>
+</div>
 """
 
 
@@ -145,11 +172,11 @@ HALAMAN_PASIEN = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Mini SIMRS Klinik</title>
+    <title>Pasien - Mini SIMRS Klinik</title>
     {{ gaya|safe }}
 </head>
 <body>
-    <div class="navbar">Mini SIMRS Klinik</div>
+    {{ navbar|safe }}
     <div class="container">
         <div class="judul">
             <h1>Daftar Pasien</h1>
@@ -234,7 +261,7 @@ HALAMAN_EDIT = """
     {{ gaya|safe }}
 </head>
 <body>
-    <div class="navbar">Mini SIMRS Klinik</div>
+    {{ navbar|safe }}
     <div class="container">
         <div class="judul">
             <h1>Edit Pasien #{{ p[0] }}</h1>
@@ -266,6 +293,60 @@ HALAMAN_EDIT = """
 """
 
 
+HALAMAN_KUNJUNGAN = """
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Kunjungan - Mini SIMRS Klinik</title>
+    {{ gaya|safe }}
+</head>
+<body>
+    {{ navbar|safe }}
+    <div class="container">
+        <div class="judul">
+            <h1>Riwayat Kunjungan</h1>
+            <span class="jumlah">{{ data|length }} kunjungan</span>
+        </div>
+
+        <div class="kartu">
+            <table>
+                <tr>
+                    <th>ID</th>
+                    <th>Tanggal</th>
+                    <th>Pasien</th>
+                    <th>Dokter</th>
+                    <th>Diagnosa</th>
+                    <th>Obat</th>
+                    <th>Dosis</th>
+                </tr>
+                {% for k in data %}
+                <tr>
+                    <td>{{ k[0] }}</td>
+                    <td>{{ k[1] }}</td>
+                    <td>{{ k[2] }}</td>
+                    <td>
+                        {{ k[3] }}<br>
+                        <span class="spesialis">{{ k[4] }}</span>
+                    </td>
+                    <td>{% if k[5] %}{{ k[5] }}{% else %}<span class="kosong">-</span>{% endif %}</td>
+                    <td>{% if k[6] %}{{ k[6] }}{% else %}<span class="kosong">-</span>{% endif %}</td>
+                    <td>{% if k[7] %}{{ k[7] }}{% else %}<span class="kosong">-</span>{% endif %}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="tidak-ada">Belum ada data kunjungan.</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+
 @app.route("/")
 def daftar_pasien():
     q = request.args.get("q", "").strip()
@@ -288,7 +369,7 @@ def daftar_pasien():
     cursor.close()
     db.close()
     return render_template_string(
-        HALAMAN_PASIEN, data=data, q=q, pesan=pesan, gaya=GAYA
+        HALAMAN_PASIEN, data=data, q=q, pesan=pesan, gaya=GAYA, navbar=NAVBAR
     )
 
 
@@ -342,7 +423,7 @@ def edit_pasien(id_pasien):
     db.close()
     if p is None:
         return redirect("/")
-    return render_template_string(HALAMAN_EDIT, p=p, gaya=GAYA)
+    return render_template_string(HALAMAN_EDIT, p=p, gaya=GAYA, navbar=NAVBAR)
 
 
 @app.route("/hapus/<int:id_pasien>", methods=["POST"])
@@ -359,6 +440,26 @@ def hapus_pasien(id_pasien):
         cursor.close()
         db.close()
     return redirect(url_for("daftar_pasien", pesan=pesan))
+
+
+@app.route("/kunjungan")
+def daftar_kunjungan():
+    db = koneksi()
+    cursor = db.cursor()
+    cursor.execute(
+        "SELECT k.id_kunjungan, k.tanggal_kunjungan, p.nama, "
+        "d.nama_dokter, d.spesialisasi, k.diagnosa, k.obat, k.dosis "
+        "FROM kunjungan k "
+        "JOIN pasien p ON k.id_pasien = p.id_pasien "
+        "JOIN dokter d ON k.id_dokter = d.id_dokter "
+        "ORDER BY k.tanggal_kunjungan DESC"
+    )
+    data = cursor.fetchall()
+    cursor.close()
+    db.close()
+    return render_template_string(
+        HALAMAN_KUNJUNGAN, data=data, gaya=GAYA, navbar=NAVBAR
+    )
 
 
 if __name__ == "__main__":
