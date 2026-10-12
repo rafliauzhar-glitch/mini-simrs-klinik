@@ -65,7 +65,7 @@ HALAMAN_PASIEN = """
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
             overflow: hidden;
         }
-        .form-tambah {
+        .form-tambah, .form-cari {
             background: white;
             border-radius: 12px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
@@ -76,19 +76,22 @@ HALAMAN_PASIEN = """
             flex-wrap: wrap;
             align-items: flex-end;
         }
-        .form-tambah label {
+        .form-cari { align-items: center; }
+        .form-cari input { flex: 1; min-width: 200px; }
+        label {
             font-size: 13px;
             color: #475569;
             font-weight: 600;
         }
-        .form-tambah input {
+        input {
             padding: 8px 10px;
             border: 1px solid #cbd5e1;
             border-radius: 8px;
             font-size: 14px;
             margin-top: 4px;
         }
-        .form-tambah button {
+        .form-cari input { margin-top: 0; }
+        button {
             background: #0f766e;
             color: white;
             border: none;
@@ -98,7 +101,12 @@ HALAMAN_PASIEN = """
             font-weight: 600;
             cursor: pointer;
         }
-        .form-tambah button:hover { background: #115e59; }
+        button:hover { background: #115e59; }
+        .reset {
+            color: #475569;
+            font-size: 14px;
+            text-decoration: none;
+        }
         table { border-collapse: collapse; width: 100%; }
         th {
             background: #f8fafc;
@@ -117,6 +125,11 @@ HALAMAN_PASIEN = """
         tr:last-child td { border-bottom: none; }
         tr:hover td { background: #f0fdfa; }
         .kosong { color: #94a3b8; }
+        .tidak-ada {
+            text-align: center;
+            color: #94a3b8;
+            padding: 24px;
+        }
         .rm {
             background: #e0f2fe;
             color: #0369a1;
@@ -134,6 +147,12 @@ HALAMAN_PASIEN = """
             <h1>Daftar Pasien</h1>
             <span class="jumlah">{{ data|length }} pasien</span>
         </div>
+
+        <form class="form-cari" method="GET" action="/">
+            <input type="text" name="q" value="{{ q }}" placeholder="Cari nama atau no rekam medis...">
+            <button type="submit">Cari</button>
+            {% if q %}<a class="reset" href="/">Reset</a>{% endif %}
+        </form>
 
         <form class="form-tambah" method="POST" action="/tambah">
             <div>
@@ -172,6 +191,10 @@ HALAMAN_PASIEN = """
                     <td>{% if p[3] %}{{ p[3] }}{% else %}<span class="kosong">-</span>{% endif %}</td>
                     <td><span class="rm">{{ p[4] }}</span></td>
                 </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="tidak-ada">Tidak ada pasien yang cocok.</td>
+                </tr>
                 {% endfor %}
             </table>
         </div>
@@ -183,15 +206,25 @@ HALAMAN_PASIEN = """
 
 @app.route("/")
 def daftar_pasien():
+    q = request.args.get("q", "").strip()
+
     db = koneksi()
     cursor = db.cursor()
-    cursor.execute(
-        "SELECT id_pasien, nama, tanggal_lahir, no_bpjs, no_rekam_medis FROM pasien"
-    )
+    if q:
+        cursor.execute(
+            "SELECT id_pasien, nama, tanggal_lahir, no_bpjs, no_rekam_medis "
+            "FROM pasien WHERE nama LIKE %s OR no_rekam_medis LIKE %s",
+            (f"%{q}%", f"%{q}%"),
+        )
+    else:
+        cursor.execute(
+            "SELECT id_pasien, nama, tanggal_lahir, no_bpjs, no_rekam_medis "
+            "FROM pasien"
+        )
     data = cursor.fetchall()
     cursor.close()
     db.close()
-    return render_template_string(HALAMAN_PASIEN, data=data)
+    return render_template_string(HALAMAN_PASIEN, data=data, q=q)
 
 
 @app.route("/tambah", methods=["POST"])
