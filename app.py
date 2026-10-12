@@ -1,7 +1,7 @@
 import os
 import mysql.connector
 from dotenv import load_dotenv
-from flask import Flask, render_template_string
+from flask import Flask, render_template_string, request, redirect
 
 load_dotenv()
 
@@ -65,6 +65,40 @@ HALAMAN_PASIEN = """
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
             overflow: hidden;
         }
+        .form-tambah {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+            padding: 16px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .form-tambah label {
+            font-size: 13px;
+            color: #475569;
+            font-weight: 600;
+        }
+        .form-tambah input {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .form-tambah button {
+            background: #0f766e;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .form-tambah button:hover { background: #115e59; }
         table { border-collapse: collapse; width: 100%; }
         th {
             background: #f8fafc;
@@ -100,6 +134,27 @@ HALAMAN_PASIEN = """
             <h1>Daftar Pasien</h1>
             <span class="jumlah">{{ data|length }} pasien</span>
         </div>
+
+        <form class="form-tambah" method="POST" action="/tambah">
+            <div>
+                <label>Nama</label><br>
+                <input type="text" name="nama" required>
+            </div>
+            <div>
+                <label>Tanggal Lahir</label><br>
+                <input type="date" name="tanggal_lahir" required>
+            </div>
+            <div>
+                <label>No BPJS (boleh kosong)</label><br>
+                <input type="text" name="no_bpjs">
+            </div>
+            <div>
+                <label>No Rekam Medis</label><br>
+                <input type="text" name="no_rekam_medis" required>
+            </div>
+            <button type="submit">Simpan</button>
+        </form>
+
         <div class="kartu">
             <table>
                 <tr>
@@ -137,6 +192,26 @@ def daftar_pasien():
     cursor.close()
     db.close()
     return render_template_string(HALAMAN_PASIEN, data=data)
+
+
+@app.route("/tambah", methods=["POST"])
+def tambah_pasien():
+    nama = request.form["nama"].strip()
+    tanggal_lahir = request.form["tanggal_lahir"]
+    no_bpjs = request.form["no_bpjs"].strip() or None
+    no_rm = request.form["no_rekam_medis"].strip()
+
+    db = koneksi()
+    cursor = db.cursor()
+    cursor.execute(
+        "INSERT INTO pasien (nama, tanggal_lahir, no_bpjs, no_rekam_medis) "
+        "VALUES (%s, %s, %s, %s)",
+        (nama, tanggal_lahir, no_bpjs, no_rm),
+    )
+    db.commit()
+    cursor.close()
+    db.close()
+    return redirect("/")
 
 
 if __name__ == "__main__":
